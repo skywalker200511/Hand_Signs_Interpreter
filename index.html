@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Language Interpreter</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <h1>Sign Language Interpreter</h1>
+        <p class="subtitle">Real-time Hand Gesture to Text</p>
+
+        <div class="main">
+            <!-- Camera Section -->
+            <div class="camera-box">
+                <video id="video" autoplay playsinline muted></video>
+                <canvas id="canvas"></canvas>
+            </div>
+
+            <!-- Output Section -->
+            <div class="output-box">
+                <h2>Detected Sign</h2>
+                <div class="sign-display">—</div>
+
+                <h2>Translated Text</h2>
+                <div class="text-output">
+                    <p>Your translated text will appear here...</p>
+                </div>
+
+                <button class="clear-btn">Clear Text</button>
+            </div>
+        </div>
+
+        <footer>
+            <p>| SAIRAJ NAIK |</p>
+        </footer>
+    </div>
+
+
+
+
+    <!-- MediaPipe -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+
+
+
+        
+        <script>
+                
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    // Start hidden camera
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => video.srcObject = stream)
+        .catch(err => console.error("Camera not available:", err));
+
+    video.addEventListener("loadeddata", () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+    });
+
+    // MediaPipe Hands 
+    const hands = new Hands({
+        locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+    });
+
+    hands.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.7,
+        minTrackingConfidence: 0.7
+    });
+
+    // Get finger state (1=up, 0=down)
+    function getFingerState(landmarks) {
+        const state = [];
+        // Thumb
+        state.push(landmarks[4].x > landmarks[3].x ? 1 : 0);
+        // Index
+        state.push(landmarks[8].y < landmarks[6].y ? 1 : 0);
+        // Middle
+        state.push(landmarks[12].y < landmarks[10].y ? 1 : 0);
+        // Ring
+        state.push(landmarks[16].y < landmarks[14].y ? 1 : 0);
+        // Pinky
+        state.push(landmarks[20].y < landmarks[18].y ? 1 : 0);
+        return state;
+    }
+
+    
+    function recognizeGesture(landmarks) {
+        const fingers = getFingerState(landmarks);
+
+        
+        if (fingers.every(f => f === 1)) return "Hello👋";
+
+        
+        if (fingers[1] === 1 && fingers[2] === 1 &&
+            fingers[0] === 0 && fingers[3] === 0 && fingers[4] === 0)
+            return "peace ✌️";
+
+        
+        if (fingers[0] === 1 && fingers[1] === 0 && fingers[2] === 0 &&
+            fingers[3] === 0 && fingers[4] === 0)
+            return "Good Job 👍";
+
+        
+        if (fingers[0] === 1 && fingers[1] === 1 &&
+            fingers[2] === 0 && fingers[3] === 0 && fingers[4] === 0)
+            return "Loser ✋";
+
+        
+        if (fingers[0] === 0 && fingers[1] === 1 &&
+            fingers[2] === 0 && fingers[3] === 0 && fingers[4] === 1)
+            return "YO🤟";
+
+        return "Unknown";
+    }
+
+    
+    hands.onResults(results => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+            const landmarks = results.multiHandLandmarks[0];
+
+            // skeleton hand
+            drawConnectors(ctx, landmarks, HAND_CONNECTIONS, { color: "#00FF00", lineWidth: 2 });
+            drawLandmarks(ctx, landmarks, { color: "#FF0000", lineWidth: 1 });
+
+            // Recognize gesture
+            const gesture = recognizeGesture(landmarks);
+            document.querySelector(".sign-display").innerText = gesture;
+        } else {
+            document.querySelector(".sign-display").innerText = "—";
+        }
+    });
+
+    // Camera 
+    const camera = new Camera(video, {
+        onFrame: async () => await hands.send({ image: video }),
+        width: 640,
+        height: 480
+    });
+    camera.start();
+
+    // Clear text
+    document.querySelector(".clear-btn")?.addEventListener("click", () => {
+        document.querySelector(".text-output p").innerText = "";
+    });
+        </script>
+
+
+
+
+</body>
+</html>
